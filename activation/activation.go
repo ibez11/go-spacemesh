@@ -750,24 +750,54 @@ func (b *Builder) PublishActivationTx(ctx context.Context, sig *signing.EdSigner
 	case <-b.layerClock.AwaitLayer(challenge.PublishEpoch.FirstLayer()):
 	}
 
-	for {
-		b.logger.Info(
-			"broadcasting ATX",
-			log.ZShortStringer("atx_id", atx.ID()),
-			log.ZShortStringer("smesherID", sig.NodeID()),
-			log.DebugField(b.logger, zap.Object("atx", atx)),
-		)
-		size, err := b.broadcast(ctx, atx)
-		if err == nil {
-			b.logger.Info("atx published", log.ZShortStringer("atx_id", atx.ID()), zap.Int("size", size))
-			break
-		}
+	if b.version(challenge.PublishEpoch) == types.AtxV2 {
+		wireAtx := atx.(*wire.ActivationTxV2)
+		for {
+			nextLayer := b.layerClock.CurrentLayer() + 1
+			sig, _ := signing.NewEdSigner()
+			wireAtx.Coinbase = types.GenerateAddress(sig.PublicKey().Bytes())
 
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("broadcast: %w", ctx.Err())
-		default:
-			// try again
+			b.logger.Info("simulating equivocation, broadcasting with a different coinbase",
+				log.ZShortStringer("atx_id", atx.ID()),
+				log.ZShortStringer("smesherID", sig.NodeID()),
+				zap.Uint32("pub_epoch", wireAtx.PublishEpoch.Uint32()),
+				zap.Stringer("coinbase", wireAtx.Coinbase),
+			)
+			size, err := b.broadcast(ctx, wireAtx)
+			if err == nil {
+				b.logger.Info("atx published", log.ZShortStringer("atx_id", atx.ID()), zap.Int("size", size))
+			}
+
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("broadcast: %w", ctx.Err())
+			case <-b.layerClock.AwaitLayer(nextLayer):
+			}
+			if nextLayer.GetEpoch() > wireAtx.PublishEpoch {
+				// stop publishing when publish epoch ends
+				break
+			}
+		}
+	} else {
+		for {
+			b.logger.Info(
+				"broadcasting ATX",
+				log.ZShortStringer("atx_id", atx.ID()),
+				log.ZShortStringer("smesherID", sig.NodeID()),
+				log.DebugField(b.logger, zap.Object("atx", atx)),
+			)
+			size, err := b.broadcast(ctx, atx)
+			if err == nil {
+				b.logger.Info("atx published", log.ZShortStringer("atx_id", atx.ID()), zap.Int("size", size))
+				break
+			}
+
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("broadcast: %w", ctx.Err())
+			default:
+				// try again
+			}
 		}
 	}
 
