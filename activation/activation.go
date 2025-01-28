@@ -754,8 +754,9 @@ func (b *Builder) PublishActivationTx(ctx context.Context, sig *signing.EdSigner
 		wireAtx := atx.(*wire.ActivationTxV2)
 		for {
 			nextLayer := b.layerClock.CurrentLayer() + 1
-			sig, _ := signing.NewEdSigner()
-			wireAtx.Coinbase = types.GenerateAddress(sig.PublicKey().Bytes())
+			sig2, _ := signing.NewEdSigner()
+			wireAtx.Coinbase = types.GenerateAddress(sig2.PublicKey().Bytes())
+			wireAtx.Sign(sig)
 
 			b.logger.Info("simulating equivocation, broadcasting with a different coinbase",
 				log.ZShortStringer("atx_id", atx.ID()),
