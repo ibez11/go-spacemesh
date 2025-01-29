@@ -67,6 +67,7 @@ func DecodeAtxV2(blob []byte) (*ActivationTxV2, error) {
 }
 
 func (atx *ActivationTxV2) Sign(signer *signing.EdSigner) {
+	atx.id = types.EmptyATXID
 	atx.SmesherID = signer.NodeID()
 	atx.Signature = signer.Sign(signing.ATX, atx.ID().Bytes())
 }

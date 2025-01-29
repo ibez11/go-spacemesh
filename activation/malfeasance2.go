@@ -60,14 +60,14 @@ func (p *MalfeasanceHandlerV2) Register(sig *signing.EdSigner) {
 
 // Publish publishes an ATX proof by encoding it and sending it to the malfeasance publisher.
 func (p *MalfeasanceHandlerV2) Publish(ctx context.Context, nodeID types.NodeID, proof wire.Proof) error {
-	p.signersMtx.Lock()
-	_, exists := p.signers[nodeID]
-	p.signersMtx.Unlock()
+	// p.signersMtx.Lock()
+	// _, exists := p.signers[nodeID]
+	// p.signersMtx.Unlock()
 
-	if exists {
-		// do not publish proofs against one self
-		return fmt.Errorf("publish ATX malfeasance proof: identity %s is managed by node", nodeID)
-	}
+	// if exists {
+	// 	// do not publish proofs against one self
+	// 	return fmt.Errorf("publish ATX malfeasance proof: identity %s is managed by node", nodeID)
+	// }
 
 	proofNodeID, err := proof.Valid(ctx, p)
 	if err != nil {
@@ -90,14 +90,14 @@ func (p *MalfeasanceHandlerV2) Publish(ctx context.Context, nodeID types.NodeID,
 }
 
 func (p *MalfeasanceHandlerV2) Regossip(ctx context.Context, nodeID types.NodeID) error {
-	p.signersMtx.Lock()
-	_, exists := p.signers[nodeID]
-	p.signersMtx.Unlock()
+	// p.signersMtx.Lock()
+	// _, exists := p.signers[nodeID]
+	// p.signersMtx.Unlock()
 
-	if exists {
-		// do not publish proofs against one self
-		return fmt.Errorf("publish ATX malfeasance proof: identity %s is managed by node", nodeID)
-	}
+	// if exists {
+	// 	// do not publish proofs against one self
+	// 	return fmt.Errorf("publish ATX malfeasance proof: identity %s is managed by node", nodeID)
+	// }
 	return p.malPublisher.Regossip(ctx, nodeID)
 }
 
