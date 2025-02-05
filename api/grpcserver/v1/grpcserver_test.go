@@ -1,17 +1,14 @@
-package grpcserver
+package v1
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"math"
 	"math/big"
-	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -28,13 +25,12 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/spacemeshos/go-spacemesh/activation"
+	"github.com/spacemeshos/go-spacemesh/api/grpcserver"
 	"github.com/spacemeshos/go-spacemesh/codec"
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/datastore"
@@ -120,17 +116,6 @@ func genLayerBlock(layerID types.LayerID, txs []types.TransactionID) *types.Bloc
 	}
 	b.Initialize()
 	return b
-}
-
-func dialGrpc(tb testing.TB, cfg Config) *grpc.ClientConn {
-	tb.Helper()
-	conn, err := grpc.NewClient(
-		cfg.PublicListener,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	require.NoError(tb, err)
-	tb.Cleanup(func() { require.NoError(tb, conn.Close()) })
-	return conn
 }
 
 func TestMain(m *testing.M) {
@@ -399,47 +384,6 @@ func NewTx(nonce uint64, recipient types.Address, signer *signing.EdSigner) *typ
 	return &tx
 }
 
-func launchServer(tb testing.TB, services ...ServiceAPI) (Config, func()) {
-	cfg := DefaultTestConfig(tb)
-	grpcService, err := NewWithServices(cfg.PublicListener, zaptest.NewLogger(tb).Named("grpc"), cfg, services)
-	require.NoError(tb, err)
-
-	// start gRPC server
-	require.NoError(tb, grpcService.Start())
-
-	// update config with bound addresses
-	cfg.PublicListener = grpcService.BoundAddress
-
-	return cfg, func() { assert.NoError(tb, grpcService.Close()) }
-}
-
-func getFreePort(optionalPort int) (int, error) {
-	l, e := net.Listen("tcp", fmt.Sprintf(":%v", optionalPort))
-	if e != nil {
-		l, e = net.Listen("tcp", ":0")
-		if e != nil {
-			return 0, fmt.Errorf("listen TCP: %w", e)
-		}
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-func TestNewServersConfig(t *testing.T) {
-	port1, err := getFreePort(0)
-	require.NoError(t, err, "Should be able to establish a connection on a port")
-
-	port2, err := getFreePort(0)
-	require.NoError(t, err, "Should be able to establish a connection on a port")
-
-	grpcService := New(fmt.Sprintf(":%d", port1), zaptest.NewLogger(t).Named("grpc"), DefaultTestConfig(t))
-	jsonService := NewJSONHTTPServer(zaptest.NewLogger(t).Named("grpc.JSON"), fmt.Sprintf(":%d", port2),
-		[]string{}, false)
-
-	require.Contains(t, grpcService.listener, strconv.Itoa(port1), "Expected same port")
-	require.Contains(t, jsonService.listener, strconv.Itoa(port2), "Expected same port")
-}
-
 func TestNewLocalServer(t *testing.T) {
 	tt := []struct {
 		name     string
@@ -483,10 +427,10 @@ func TestNewLocalServer(t *testing.T) {
 			genTime := NewMockgenesisTimeAPI(ctrl)
 			syncer := NewMocksyncer(ctrl)
 
-			cfg := DefaultTestConfig(t)
+			cfg := grpcserver.DefaultTestConfig(t)
 			cfg.PostListener = tc.listener
 			svc := NewNodeService(peerCounter, meshApi, genTime, syncer, "v0.0.0", "cafebabe")
-			grpcService, err := NewWithServices(cfg.PostListener, logger, cfg, []ServiceAPI{svc})
+			_, err := grpcserver.NewWithServices(cfg.PostListener, logger, cfg, []grpcserver.ServiceAPI{svc})
 			if tc.warn {
 				require.Equal(t, 1, observedLogs.Len(), "Expected a warning log")
 				require.Equal(t, "unsecured grpc server is listening on a public IP address",
@@ -495,9 +439,7 @@ func TestNewLocalServer(t *testing.T) {
 				require.Equal(t, tc.listener, observedLogs.All()[0].ContextMap()["address"])
 				return
 			}
-
 			require.NoError(t, err)
-			require.Equal(t, grpcService.listener, tc.listener, "expected same listener")
 		})
 	}
 }

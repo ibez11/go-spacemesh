@@ -1,4 +1,4 @@
-package grpcserver
+package v1
 
 import (
 	"crypto/rand"
@@ -17,6 +17,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/spacemeshos/go-spacemesh/api/grpcserver"
 )
 
 const (
@@ -28,38 +32,34 @@ const (
 	clientKeyName  = "client.key"
 )
 
-func genPrivateKey(tb testing.TB, path string) *rsa.PrivateKey {
-	caKey, err := rsa.GenerateKey(rand.Reader, 4096)
+func launchServer(tb testing.TB, services ...grpcserver.ServiceAPI) (grpcserver.Config, func()) {
+	cfg := grpcserver.DefaultTestConfig(tb)
+	grpcService, err := grpcserver.NewWithServices(
+		cfg.PublicListener,
+		zaptest.NewLogger(tb).Named("grpc"),
+		cfg,
+		services,
+	)
 	require.NoError(tb, err)
 
-	f, err := os.Create(path)
-	require.NoError(tb, err)
-	defer f.Close()
-	require.NoError(tb, pem.Encode(f, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(caKey),
-	}))
-	return caKey
+	// start gRPC server
+	require.NoError(tb, grpcService.Start())
+
+	// update config with bound addresses
+	cfg.PublicListener = grpcService.BoundAddress
+
+	return cfg, func() { assert.NoError(tb, grpcService.Close()) }
 }
 
-func genCertificate(
-	tb testing.TB,
-	template,
-	parent *x509.Certificate,
-	pub *rsa.PublicKey,
-	priv *rsa.PrivateKey,
-	path string,
-) {
-	caBytes, err := x509.CreateCertificate(rand.Reader, template, parent, pub, priv)
+func dialGrpc(tb testing.TB, cfg grpcserver.Config) *grpc.ClientConn {
+	tb.Helper()
+	conn, err := grpc.NewClient(
+		cfg.PublicListener,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	require.NoError(tb, err)
-
-	f, err := os.Create(path)
-	require.NoError(tb, err)
-	defer f.Close()
-	require.NoError(tb, pem.Encode(f, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: caBytes,
-	}))
+	tb.Cleanup(func() { require.NoError(tb, conn.Close()) })
+	return conn
 }
 
 func genKeys(tb testing.TB) string {
@@ -142,18 +142,52 @@ func genKeys(tb testing.TB) string {
 	return dir
 }
 
-func launchTLSServer(tb testing.TB, certDir string, services ...ServiceAPI) (Config, func()) {
+func genPrivateKey(tb testing.TB, path string) *rsa.PrivateKey {
+	caKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	require.NoError(tb, err)
+
+	f, err := os.Create(path)
+	require.NoError(tb, err)
+	defer f.Close()
+	require.NoError(tb, pem.Encode(f, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(caKey),
+	}))
+	return caKey
+}
+
+func genCertificate(
+	tb testing.TB,
+	template,
+	parent *x509.Certificate,
+	pub *rsa.PublicKey,
+	priv *rsa.PrivateKey,
+	path string,
+) {
+	caBytes, err := x509.CreateCertificate(rand.Reader, template, parent, pub, priv)
+	require.NoError(tb, err)
+
+	f, err := os.Create(path)
+	require.NoError(tb, err)
+	defer f.Close()
+	require.NoError(tb, pem.Encode(f, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	}))
+}
+
+func launchTLSServer(tb testing.TB, certDir string, services ...grpcserver.ServiceAPI) (grpcserver.Config, func()) {
 	caCert := filepath.Join(certDir, caCertName)
 	serverCert := filepath.Join(certDir, serverCertName)
 	serverKey := filepath.Join(certDir, serverKeyName)
 
-	cfg := DefaultTestConfig(tb)
+	cfg := grpcserver.DefaultTestConfig(tb)
 	cfg.TLSListener = "127.0.0.1:0"
 	cfg.TLSCACert = caCert
 	cfg.TLSCert = serverCert
 	cfg.TLSKey = serverKey
 
-	grpcService, err := NewTLS(zaptest.NewLogger(tb).Named("grpc.TLS"), cfg, services)
+	grpcService, err := grpcserver.NewTLS(zaptest.NewLogger(tb).Named("grpc.TLS"), cfg, services)
 	require.NoError(tb, err)
 
 	// start gRPC server

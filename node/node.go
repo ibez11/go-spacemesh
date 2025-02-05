@@ -38,6 +38,7 @@ import (
 
 	"github.com/spacemeshos/go-spacemesh/activation"
 	"github.com/spacemeshos/go-spacemesh/api/grpcserver"
+	v1 "github.com/spacemeshos/go-spacemesh/api/grpcserver/v1"
 	"github.com/spacemeshos/go-spacemesh/api/grpcserver/v2alpha1"
 	"github.com/spacemeshos/go-spacemesh/api/grpcserver/v2beta1"
 	"github.com/spacemeshos/go-spacemesh/atxsdata"
@@ -1099,7 +1100,7 @@ func (app *App) initServices(ctx context.Context) error {
 
 	nipostBuilder, err := activation.NewNIPostBuilder(
 		app.localDB,
-		grpcPostService.(*grpcserver.PostService),
+		grpcPostService.(*v1.PostService),
 		nipostLogger,
 		app.Config.POET,
 		app.clock,
@@ -1494,15 +1495,15 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 
 	switch svc {
 	case grpcserver.Debug:
-		service := grpcserver.NewDebugService(app.db, app.conState, app.host, app.hOracle, app.loggers)
+		service := v1.NewDebugService(app.db, app.conState, app.host, app.hOracle, app.loggers)
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.GlobalState:
-		service := grpcserver.NewGlobalStateService(app.mesh, app.conState)
+		service := v1.NewGlobalStateService(app.mesh, app.conState)
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Mesh:
-		service := grpcserver.NewMeshService(
+		service := v1.NewMeshService(
 			app.cachedDB,
 			app.mesh,
 			app.conState,
@@ -1516,7 +1517,7 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Node:
-		service := grpcserver.NewNodeService(
+		service := v1.NewNodeService(
 			app.host,
 			app.mesh,
 			app.clock,
@@ -1527,7 +1528,7 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Admin:
-		service := grpcserver.NewAdminService(app.db, app.Config.DataDir(), app.host)
+		service := v1.NewAdminService(app.db, app.Config.DataDir(), app.host)
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Smesher:
@@ -1540,10 +1541,10 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 		if err != nil {
 			return nil, err
 		}
-		service := grpcserver.NewSmesherService(
+		service := v1.NewSmesherService(
 			app.atxBuilder,
 			app.postSupervisor,
-			postService.(*grpcserver.PostService),
+			postService.(*v1.PostService),
 			app.Config.API.SmesherStreamInterval,
 			app.Config.SMESHING.Opts,
 			sig,
@@ -1551,7 +1552,7 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Post:
-		service := grpcserver.NewPostService(app.addLogger(PostServiceLogger, lg).Zap())
+		service := v1.NewPostService(app.addLogger(PostServiceLogger, lg).Zap())
 		isCoinbaseSet := app.Config.SMESHING.CoinbaseAccount != ""
 		if !isCoinbaseSet {
 			lg.Warning("coinbase account is not set, connections from remote post services will be rejected")
@@ -1560,11 +1561,11 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.PostInfo:
-		service := grpcserver.NewPostInfoService(app.atxBuilder)
+		service := v1.NewPostInfoService(app.atxBuilder)
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Transaction:
-		service := grpcserver.NewTransactionService(
+		service := v1.NewTransactionService(
 			app.db,
 			app.host,
 			app.mesh,
@@ -1575,7 +1576,7 @@ func (app *App) grpcService(svc grpcserver.Service, lg log.Log) (grpcserver.Serv
 		app.grpcServices[svc] = service
 		return service, nil
 	case grpcserver.Activation:
-		service := grpcserver.NewActivationService(app.cachedDB, types.ATXID(app.Config.Genesis.GoldenATX()))
+		service := v1.NewActivationService(app.cachedDB, types.ATXID(app.Config.Genesis.GoldenATX()))
 		app.grpcServices[svc] = service
 		return service, nil
 	case v2alpha1.Activation:
@@ -1850,7 +1851,7 @@ func (app *App) startAPIServices(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		svc.(*grpcserver.SmesherService).SetPostServiceConfig(app.Config.POSTService)
+		svc.(*v1.SmesherService).SetPostServiceConfig(app.Config.POSTService)
 		if app.Config.SMESHING.Start {
 			if app.Config.SMESHING.CoinbaseAccount == "" {
 				return errors.New("smeshing enabled but no coinbase account provided")
