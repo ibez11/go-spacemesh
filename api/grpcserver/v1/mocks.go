@@ -6,7 +6,7 @@
 //	mockgen -typed -package=v1 -destination=./mocks.go -source=./interface.go
 //
 
-// Package grpcserver is a generated GoMock package.
+// Package v1 is a generated GoMock package.
 package v1
 
 import (
