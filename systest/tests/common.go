@@ -140,7 +140,7 @@ func layersStream(
 ) error {
 	retries := 0
 BACKOFF:
-	client := pb2.NewLayerStreamServiceClient(node.PubConn())
+	client := pb2.NewLayerStreamServiceClient(node.PrivConn())
 	stream, err := client.Stream(ctx, &pb2.LayerStreamRequest{
 		Watch: true,
 	})
@@ -236,7 +236,7 @@ BACKOFF:
 
 func waitTransaction(ctx context.Context, eg *errgroup.Group, node *cluster.NodeClient, id []byte) {
 	eg.Go(func() error {
-		client := pb2.NewTransactionStreamServiceClient(node.PubConn())
+		client := pb2.NewTransactionStreamServiceClient(node.PrivConn())
 		stream, err := client.Stream(ctx, &pb2.TransactionStreamRequest{
 			Watch: true,
 			Txid:  [][]byte{id},
@@ -261,7 +261,7 @@ func watchTransactionResults(
 ) error {
 	retries := 0
 BACKOFF:
-	client := pb2.NewTransactionStreamServiceClient(node.PubConn())
+	client := pb2.NewTransactionStreamServiceClient(node.PrivConn())
 	stream, err := client.Stream(ctx, &pb2.TransactionStreamRequest{
 		Watch: true,
 	})
@@ -528,7 +528,7 @@ type txRequest struct {
 func (r *txRequest) wait(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	client := pb2.NewTransactionStreamServiceClient(r.node.PubConn())
+	client := pb2.NewTransactionStreamServiceClient(r.node.PrivConn())
 	stream, err := client.Stream(ctx, &pb2.TransactionStreamRequest{
 		Txid:  [][]byte{r.txid},
 		Watch: true,
@@ -549,7 +549,7 @@ func (r *txRequest) result(ctx context.Context) (*pb2.TransactionResponse, error
 	if r.rst != nil {
 		return r.rst, nil
 	}
-	client := pb2.NewTransactionStreamServiceClient(r.node.PubConn())
+	client := pb2.NewTransactionStreamServiceClient(r.node.PrivConn())
 	stream, err := client.Stream(ctx, &pb2.TransactionStreamRequest{
 		Txid: [][]byte{r.txid},
 	})
