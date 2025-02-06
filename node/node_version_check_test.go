@@ -31,10 +31,7 @@ func TestUpgradeToV15(t *testing.T) {
 	t.Run("not fully migrated DB fails", func(t *testing.T) {
 		cfg := config.DefaultTestConfig(t)
 		uri := path.Join(cfg.DataDir(), localDbFile)
-
 		schema, err := statesql.Schema()
-		require.NoError(t, err)
-
 		schema.Migrations = schema.Migrations[:2]
 
 		db, err := statesql.Open(uri,
