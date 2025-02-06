@@ -104,7 +104,7 @@ func (s *LayerStreamService) Stream(
 
 					derr = stream.Send(l)
 				} else {
-					return status.Error(codes.Internal, derr.Error())
+					return status.Error(codes.Internal, err.Error())
 				}
 
 				switch {
