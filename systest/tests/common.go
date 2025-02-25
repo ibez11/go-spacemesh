@@ -151,6 +151,10 @@ BACKOFF:
 		return fmt.Errorf("streaming layers for %s: %w", node.Name, err)
 	}
 	defer stream.CloseSend()
+	_, err = stream.Header()
+	if err != nil {
+		return fmt.Errorf("layer stream header: %w", err)
+	}
 	for {
 		layer, err := stream.Recv()
 		s, ok := status.FromError(err)
@@ -171,6 +175,7 @@ BACKOFF:
 			if retries == attempts {
 				return errors.New("layer stream unavailable")
 			}
+			stream.CloseSend()
 			retries++
 			time.Sleep(retryBackoff)
 			goto BACKOFF
@@ -202,6 +207,10 @@ BACKOFF:
 		return fmt.Errorf("streaming malfeasance for %s: %w", node.Name, err)
 	}
 	defer stream.CloseSend()
+	_, err = stream.Header()
+	if err != nil {
+		return fmt.Errorf("malfeasance stream header: %w", err)
+	}
 	for {
 		proof, err := stream.Recv()
 		s, ok := status.FromError(err)
@@ -222,6 +231,7 @@ BACKOFF:
 			if retries == attempts {
 				return errors.New("malfeasance stream unavailable")
 			}
+			stream.CloseSend()
 			retries++
 			time.Sleep(retryBackoff)
 			goto BACKOFF
@@ -272,6 +282,10 @@ BACKOFF:
 		return fmt.Errorf("streaming transactions for %s: %w", node.Name, err)
 	}
 	defer stream.CloseSend()
+	_, err = stream.Header()
+	if err != nil {
+		return fmt.Errorf("transactions stream header: %w", err)
+	}
 	for {
 		rst, err := stream.Recv()
 		s, ok := status.FromError(err)
@@ -292,6 +306,7 @@ BACKOFF:
 			if retries == attempts {
 				return errors.New("transaction results unavailable")
 			}
+			stream.CloseSend()
 			retries++
 			time.Sleep(retryBackoff)
 			goto BACKOFF
@@ -323,6 +338,10 @@ func watchProposals(
 			return fmt.Errorf("streaming proposals for %s: %w", node.Name, err)
 		}
 		defer stream.CloseSend()
+		_, err = stream.Header()
+		if err != nil {
+			return fmt.Errorf("proposal stream header: %w", err)
+		}
 		for {
 			proposal, err := stream.Recv()
 			s, ok := status.FromError(err)
@@ -343,6 +362,7 @@ func watchProposals(
 				if retries == attempts {
 					return errors.New("proposal stream unavailable")
 				}
+				stream.CloseSend()
 				retries++
 				time.Sleep(retryBackoff)
 				goto BACKOFF
