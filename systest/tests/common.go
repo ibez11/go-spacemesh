@@ -207,10 +207,6 @@ BACKOFF:
 		return fmt.Errorf("streaming malfeasance for %s: %w", node.Name, err)
 	}
 	defer stream.CloseSend()
-	_, err = stream.Header()
-	if err != nil {
-		return fmt.Errorf("malfeasance stream header: %w", err)
-	}
 	for {
 		proof, err := stream.Recv()
 		s, ok := status.FromError(err)
