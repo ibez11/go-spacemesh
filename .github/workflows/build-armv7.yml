@@ -19,6 +19,7 @@ jobs:
         run: |
           rm -f go.sum
           go mod tidy
+          go mod vendor  # Tambahan untuk memastikan semua dependensi ada
 
       - name: Debug Go Modules
         run: go list -m all
