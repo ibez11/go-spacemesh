@@ -22,5 +22,7 @@ jobs:
         run: |
           docker buildx build --platform linux/arm/v7 \
             --build-arg GOARCH=arm \
+            --build-arg GOOS=linux \
             -t ghcr.io/${{ github.repository_owner }}/go-spacemesh-armv7:latest \
             --push .
+
