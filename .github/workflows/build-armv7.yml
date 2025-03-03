@@ -9,21 +9,21 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Clear Go module cache
-        run: go clean -modcache
+      - name: Set up Go environment
+        run: |
+          go env -w GOPROXY=https://proxy.golang.org,direct
+          go env -w GOSUMDB=off
+          go env -w GOPRIVATE=github.com/envoyproxy/go-control-plane
+
+      - name: Remove and Regenerate go.sum
+        run: |
+          rm -f go.sum
+          go mod tidy -mod=mod
 
       - name: Use custom Go proxy
         run: |
-          export GOPROXY=direct
           go mod edit -replace=github.com/spacemeshos/poet=github.com/ibez11/poet@v0.10.10-fixed
-          rm -f go.sum
           go mod tidy
-
-      - name: Verify and update go.sum
-        run: |
-          go mod download
-          go mod tidy
-          go list -m all
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
