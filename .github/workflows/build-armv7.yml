@@ -19,6 +19,12 @@ jobs:
           rm -f go.sum
           go mod tidy
 
+      - name: Verify and update go.sum
+        run: |
+          go mod download
+          go mod tidy
+          go list -m all
+
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
