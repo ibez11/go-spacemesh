@@ -9,6 +9,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Use custom Go proxy
+        run: |
+          export GOPROXY=direct
+          go mod edit -replace=github.com/spacemeshos/poet=github.com/ibez11/poet@v0.10.10-fixed
+          go mod tidy
+
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
@@ -25,4 +31,3 @@ jobs:
             --build-arg GOOS=linux \
             -t ghcr.io/${{ github.repository_owner }}/go-spacemesh-armv7:latest \
             --push .
-
