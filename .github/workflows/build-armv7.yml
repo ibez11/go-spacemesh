@@ -19,10 +19,9 @@ jobs:
         run: |
           rm -f go.sum
           go mod tidy
-          go mod vendor  # Tambahan untuk memastikan semua dependensi ada
 
       - name: Debug Go Modules
-        run: go list -m all
+        run: go list -m -mod=mod all  # Tambahkan -mod=mod agar tidak pakai vendor mode
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
