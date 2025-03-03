@@ -18,12 +18,10 @@ jobs:
       - name: Remove and Regenerate go.sum
         run: |
           rm -f go.sum
-          go mod tidy -mod=mod
-
-      - name: Use custom Go proxy
-        run: |
-          go mod edit -replace=github.com/spacemeshos/poet=github.com/ibez11/poet@v0.10.10-fixed
           go mod tidy
+
+      - name: Debug Go Modules
+        run: go list -m all
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
