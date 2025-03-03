@@ -14,14 +14,22 @@ jobs:
           go env -w GOPROXY=https://proxy.golang.org,direct
           go env -w GOSUMDB=off
           go env -w GOPRIVATE=github.com/envoyproxy/go-control-plane
+          go env -w GONOSUMDB=github.com/envoyproxy/go-control-plane
 
       - name: Remove and Regenerate go.sum
         run: |
           rm -f go.sum
           go mod tidy
+          go mod vendor
+
+      - name: Force update problematic dependency
+        run: |
+          go get -u github.com/envoyproxy/go-control-plane/envoy@v1.32.3
+          go mod tidy
+          go mod vendor
 
       - name: Debug Go Modules
-        run: go list -m -mod=mod all  # Tambahkan -mod=mod agar tidak pakai vendor mode
+        run: go list -m all -mod=mod
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
